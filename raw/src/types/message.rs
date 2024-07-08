@@ -10,13 +10,19 @@ pub enum MessageOrChannelPost {
     ChannelPost(ChannelPost),
 }
 
+#[derive(Debug, Clone, PartialEq, PartialOrd)]
+pub struct MessageIdRes {
+    /// New copied message id
+    pub message_id: MessageId,
+}
+
 /// This object represents a chat message.
 #[derive(Debug, Clone, PartialEq, PartialOrd)]
 pub struct Message {
     /// Unique message identifier inside this chat.
     pub id: MessageId,
     /// Sender, can be empty for messages sent to channels.
-    pub from: User,
+    pub from: Option<User>,
     /// Date the message was sent in Unix time.
     pub date: Integer,
     /// Conversation the message belongs to.
@@ -221,17 +227,15 @@ pub enum MessageKind {
 impl Message {
     fn from_raw_message(raw: RawMessage) -> Result<Self, String> {
         let id = raw.message_id;
-        let from = match raw.from.clone() {
-            Some(from) => from,
-            None => return Err(format!("Missing `from` field for Message")),
-        };
+        let from = raw.from.clone();
+
         let date = raw.date;
         let chat = match raw.chat.clone() {
             Chat::Private(x) => MessageChat::Private(x),
             Chat::Group(x) => MessageChat::Group(x),
             Chat::Supergroup(x) => MessageChat::Supergroup(x),
+            Chat::Channel(x) => MessageChat::Channel(x),
             Chat::Unknown(x) => MessageChat::Unknown(x),
-            Chat::Channel(_) => return Err(format!("Channel chat in Message")),
         };
 
         let reply_to_message = raw.reply_to_message.clone();
@@ -370,12 +374,37 @@ impl Message {
     }
 }
 
+impl MessageIdRes {
+    fn from_raw_message(raw: RawMessageIdRes) -> Result<Self, String> {
+        Ok(MessageIdRes {
+            message_id: MessageId::new(raw.message_id),
+        })
+    }
+}
+
 impl<'de> Deserialize<'de> for Message {
     fn deserialize<D>(deserializer: D) -> Result<Message, D::Error>
     where
         D: Deserializer<'de>,
     {
         let raw: RawMessage = Deserialize::deserialize(deserializer)?;
+
+        Self::from_raw_message(raw).map_err(|err| D::Error::custom(err))
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, PartialOrd, Deserialize)]
+pub struct RawMessageIdRes {
+    /// Unique message identifier inside this chat.
+    pub message_id: Integer,
+}
+
+impl<'de> Deserialize<'de> for MessageIdRes {
+    fn deserialize<D>(deserializer: D) -> Result<MessageIdRes, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let raw: RawMessageIdRes = Deserialize::deserialize(deserializer)?;
 
         Self::from_raw_message(raw).map_err(|err| D::Error::custom(err))
     }

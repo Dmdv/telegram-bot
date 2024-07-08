@@ -273,6 +273,13 @@ impl InlineKeyboardButton {
             ),
         }
     }
+
+    pub fn login_url<T: AsRef<str>>(text: T, login_url_data: LoginUrl) -> Self {
+        Self {
+            text: text.as_ref().to_string(),
+            kind: InlineKeyboardButtonKind::LoginUrl(login_url_data),
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, PartialOrd, Serialize)]
@@ -289,8 +296,19 @@ pub enum InlineKeyboardButtonKind {
     //  CallbackGame(CallbackGame),
     // #[serde(rename = "pay")]
     //  Pay,
-    // #[serde(rename = "login_url")]
-    //  LoginUrl(LoginUrl),
+    #[serde(rename = "login_url")]
+    LoginUrl(LoginUrl),
+}
+
+#[derive(Debug, Clone, PartialEq, PartialOrd, Serialize)]
+pub struct LoginUrl {
+    pub url: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub forward_text: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub bot_username: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub request_write_access: Option<bool>,
 }
 
 /// Upon receiving a message with this object, Telegram clients will
